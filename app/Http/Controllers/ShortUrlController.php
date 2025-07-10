@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Api\ApiController;
+use OpenApi\Annotations as OA;
+
 use App\Models\ShortUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -9,9 +12,48 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 
-class ShortUrlController extends Controller
+/**
+ * @OA\Tag(name="URLs")
+ */
+class ShortUrlController extends ApiController
 {
     // POST /api/shorten
+    /**
+     * Raccourcir une URL
+     *
+     * @OA\Post(
+     *     path="/api/shorten",
+     *     summary="Raccourcir une URL",
+     *     tags={"URLs"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"url"},
+     *             @OA\Property(property="url", type="string", format="url", example="https://exemple.com/very/long/url"),
+     *             @OA\Property(property="custom_code", type="string", minLength=3, maxLength=20, example="mon-site"),
+     *             @OA\Property(property="expires_in", type="integer", description="Nombre de jours avant expiration", minimum=1, maximum=365, example=30),
+     *             @OA\Property(property="expires_at", type="string", format="date-time", description="Date d'expiration spécifique", example="2025-12-31T23:59:59Z")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="URL raccourcie avec succès",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="message", type="string", example="URL raccourcie avec succès"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 ref="#/components/schemas/ShortUrl"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Erreur de validation",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
+     */
     public function shorten(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -119,6 +161,36 @@ class ShortUrlController extends Controller
     /**
      * Redirige vers l'URL originale
      */
+    /**
+     * Rediriger vers l'URL d'origine
+     *
+     * @OA\Get(
+     *     path="/{short_code}",
+     *     summary="Rediriger vers l'URL d'origine",
+     *     tags={"URLs"},
+     *     @OA\Parameter(
+     *         name="short_code",
+     *         in="path",
+     *         required=true,
+     *         description="Le code court de l'URL",
+     *         @OA\Schema(type="string", example="abc123")
+     *     ),
+     *     @OA\Response(
+     *         response=302,
+     *         description="Redirection vers l'URL d'origine"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="URL non trouvée",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     ),
+     *     @OA\Response(
+     *         response=410,
+     *         description="URL expirée",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
+     */
     public function redirect($short_code)
     {
         $shortUrl = ShortUrl::where('short_code', $short_code)->first();
@@ -155,6 +227,39 @@ class ShortUrlController extends Controller
 
     /**
      * Vérifie la disponibilité d'un code personnalisé
+     */
+    /**
+     * Vérifier la disponibilité d'un code personnalisé
+     *
+     * @OA\Get(
+     *     path="/api/check/{code}",
+     *     summary="Vérifier la disponibilité d'un code personnalisé",
+     *     tags={"URLs"},
+     *     @OA\Parameter(
+     *         name="code",
+     *         in="path",
+     *         required=true,
+     *         description="Le code personnalisé à vérifier",
+     *         @OA\Schema(type="string", example="mon-site")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Code disponible",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="available", type="boolean", example=true)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=409,
+     *         description="Code déjà utilisé",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=false),
+     *             @OA\Property(property="available", type="boolean", example=false),
+     *             @OA\Property(property="message", type="string", example="Ce code est déjà utilisé.")
+     *         )
+     *     )
+     * )
      */
     public function checkCodeAvailability($code): JsonResponse
     {
@@ -212,6 +317,70 @@ class ShortUrlController extends Controller
      *
      * @param string $short_code Le code court de l'URL
      * @return \Illuminate\Http\JsonResponse
+     */
+    /**
+     * Obtenir les statistiques d'une URL courte
+     *
+     * @OA\Get(
+     *     path="/api/stats/{short_code}",
+     *     summary="Obtenir les statistiques d'une URL courte",
+     *     tags={"URLs"},
+     *     @OA\Parameter(
+     *         name="short_code",
+     *         in="path",
+     *         required=true,
+     *         description="Le code court de l'URL",
+     *         @OA\Schema(type="string", example="abc123")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Statistiques de l'URL",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="success", type="boolean", example=true),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="original_url", type="string"),
+     *                 @OA\Property(property="short_code", type="string"),
+     *                 @OA\Property(property="click_count", type="integer"),
+     *                 @OA\Property(property="is_custom", type="boolean"),
+     *                 @OA\Property(property="is_expired", type="boolean"),
+     *                 @OA\Property(property="expires_at", type="string", format="date-time", nullable=true),
+     *                 @OA\Property(property="days_remaining", type="integer", nullable=true),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="clicks_by_day", type="array",
+     *                     @OA\Items(type="object",
+     *                         @OA\Property(property="date", type="string", format="date"),
+     *                         @OA\Property(property="count", type="integer")
+     *                     )
+     *                 ),
+     *                 @OA\Property(property="browsers", type="array",
+     *                     @OA\Items(type="object",
+     *                         @OA\Property(property="browser", type="string"),
+     *                         @OA\Property(property="count", type="integer")
+     *                     )
+     *                 ),
+     *                 @OA\Property(property="platforms", type="array",
+     *                     @OA\Items(type="object",
+     *                         @OA\Property(property="platform", type="string"),
+     *                         @OA\Property(property="count", type="integer")
+     *                     )
+     *                 ),
+     *                 @OA\Property(property="top_referrers", type="array",
+     *                     @OA\Items(type="object",
+     *                         @OA\Property(property="referer", type="string"),
+     *                         @OA\Property(property="count", type="integer")
+     *                     )
+     *                 ),
+     *                 @OA\Property(property="first_click", type="string", format="date-time", nullable=true),
+     *                 @OA\Property(property="last_click", type="string", format="date-time", nullable=true)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="URL non trouvée",
+     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *     )
+     * )
      */
     public function stats($short_code)
     {

@@ -1,0 +1,425 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Glotelho API Documentation",
+        "description": "API de raccourcissement d'URL avec suivi des statistiques",
+        "contact": {
+            "email": "support@glotelho.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://my-default-host.com",
+            "description": "API Server"
+        }
+    ],
+    "paths": {
+        "/api/shorten": {
+            "post": {
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Raccourcir une URL",
+                "description": "Raccourcir une URL",
+                "operationId": "392a6c23593d7916a29398bfb5df61f6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "url"
+                                ],
+                                "properties": {
+                                    "url": {
+                                        "type": "string",
+                                        "format": "url",
+                                        "example": "https://exemple.com/very/long/url"
+                                    },
+                                    "custom_code": {
+                                        "type": "string",
+                                        "maxLength": 20,
+                                        "minLength": 3,
+                                        "example": "mon-site"
+                                    },
+                                    "expires_in": {
+                                        "description": "Nombre de jours avant expiration",
+                                        "type": "integer",
+                                        "maximum": 365,
+                                        "minimum": 1,
+                                        "example": 30
+                                    },
+                                    "expires_at": {
+                                        "description": "Date d'expiration spécifique",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2025-12-31T23:59:59Z"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "URL raccourcie avec succès",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "URL raccourcie avec succès"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/ShortUrl"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Erreur de validation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/{short_code}": {
+            "get": {
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Rediriger vers l'URL d'origine",
+                "description": "Rediriger vers l'URL d'origine",
+                "operationId": "270064d34c053c5d05b0ee54321059df",
+                "parameters": [
+                    {
+                        "name": "short_code",
+                        "in": "path",
+                        "description": "Le code court de l'URL",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "abc123"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirection vers l'URL d'origine"
+                    },
+                    "404": {
+                        "description": "URL non trouvée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "410": {
+                        "description": "URL expirée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/check/{code}": {
+            "get": {
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Vérifier la disponibilité d'un code personnalisé",
+                "description": "Vérifier la disponibilité d'un code personnalisé",
+                "operationId": "52f2f3b4f72d42e2dbd89d8fa766cf1c",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "description": "Le code personnalisé à vérifier",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "mon-site"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Code disponible",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "available": {
+                                            "type": "boolean",
+                                            "example": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Code déjà utilisé",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "available": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Ce code est déjà utilisé."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/stats/{short_code}": {
+            "get": {
+                "tags": [
+                    "URLs"
+                ],
+                "summary": "Obtenir les statistiques d'une URL courte",
+                "description": "Obtenir les statistiques d'une URL courte",
+                "operationId": "2b8415f0ee5d2510b45b43c78ba741be",
+                "parameters": [
+                    {
+                        "name": "short_code",
+                        "in": "path",
+                        "description": "Le code court de l'URL",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "abc123"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistiques de l'URL",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "original_url": {
+                                                    "type": "string"
+                                                },
+                                                "short_code": {
+                                                    "type": "string"
+                                                },
+                                                "click_count": {
+                                                    "type": "integer"
+                                                },
+                                                "is_custom": {
+                                                    "type": "boolean"
+                                                },
+                                                "is_expired": {
+                                                    "type": "boolean"
+                                                },
+                                                "expires_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "days_remaining": {
+                                                    "type": "integer",
+                                                    "nullable": true
+                                                },
+                                                "created_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "clicks_by_day": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "date": {
+                                                                "type": "string",
+                                                                "format": "date"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "browsers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "browser": {
+                                                                "type": "string"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "platforms": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "platform": {
+                                                                "type": "string"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "top_referrers": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "referer": {
+                                                                "type": "string"
+                                                            },
+                                                            "count": {
+                                                                "type": "integer"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "first_click": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "last_click": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "URL non trouvée",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "ShortUrl": {
+                "properties": {
+                    "short_url": {
+                        "type": "string",
+                        "example": "http://localhost/abc123"
+                    },
+                    "original_url": {
+                        "type": "string",
+                        "example": "https://exemple.com/very/long/url"
+                    },
+                    "short_code": {
+                        "type": "string",
+                        "example": "abc123"
+                    },
+                    "is_custom": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-12-31T23:59:59Z",
+                        "nullable": true
+                    },
+                    "click_count": {
+                        "type": "integer",
+                        "example": 42
+                    }
+                },
+                "type": "object"
+            },
+            "Error": {
+                "properties": {
+                    "success": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Message d'erreur détaillé"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "URLs"
+        }
+    ]
+}
