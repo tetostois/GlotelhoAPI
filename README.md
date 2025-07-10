@@ -92,10 +92,64 @@ GET /api/stats/{short_code}
 **Réponse** :
 ```json
 {
-    "original_url": "https://exemple.com/very/long/url",
-    "short_code": "abc123",
-    "click_count": 5,
-    "created_at": "2025-07-10T15:30:00.000000Z"
+    "success": true,
+    "data": {
+        "original_url": "https://exemple.com/very/long/url",
+        "short_code": "abc123",
+        "click_count": 5,
+        "is_custom": false,
+        "created_at": "2025-07-10T15:30:00.000000Z",
+        "clicks_by_day": [
+            {
+                "date": "2025-07-10",
+                "count": 5
+            }
+        ],
+        "browsers": [
+            {
+                "browser": "Google Chrome",
+                "count": 3
+            },
+            {
+                "browser": "Mozilla Firefox",
+                "count": 1
+            },
+            {
+                "browser": "Safari",
+                "count": 1
+            }
+        ],
+        "platforms": [
+            {
+                "platform": "Windows",
+                "count": 3
+            },
+            {
+                "platform": "Mac OS",
+                "count": 1
+            },
+            {
+                "platform": "iOS",
+                "count": 1
+            }
+        ],
+        "top_referrers": [
+            {
+                "referer": "https://google.com",
+                "count": 2
+            },
+            {
+                "referer": "https://twitter.com",
+                "count": 1
+            },
+            {
+                "referer": "https://facebook.com",
+                "count": 1
+            }
+        ],
+        "first_click": "2025-07-10T10:00:00.000000Z",
+        "last_click": "2025-07-10T15:30:00.000000Z"
+    }
 }
 ```
 

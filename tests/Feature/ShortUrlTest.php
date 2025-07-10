@@ -29,6 +29,76 @@ class ShortUrlTest extends TestCase
                      ]
                  ]);
     }
+    
+    /** @test */
+    public function it_tracks_clicks_with_details()
+    {
+        // Créer une URL courte
+        $shortUrl = ShortUrl::create([
+            'original_url' => 'https://example.com',
+            'short_code' => 'abc123',
+        ]);
+        
+        // Simuler une requête avec un user agent
+        $response = $this->withHeaders([
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Referer' => 'https://google.com',
+        ])->get('/abc123');
+        
+        $response->assertRedirect('https://example.com');
+        
+        // Vérifier que le clic a été enregistré
+        $this->assertDatabaseHas('clicks', [
+            'short_url_id' => $shortUrl->id,
+            'browser' => 'Google Chrome',
+            'platform' => 'Windows',
+            'referer' => 'https://google.com',
+        ]);
+    }
+    
+    /** @test */
+    public function it_shows_detailed_statistics()
+    {
+        // Créer une URL courte avec des clics
+        $shortUrl = ShortUrl::create([
+            'original_url' => 'https://example.com',
+            'short_code' => 'test123',
+            'click_count' => 5,
+        ]);
+        
+        // Ajouter des clics de test
+        $shortUrl->clicks()->createMany([
+            ['browser' => 'Chrome', 'platform' => 'Windows', 'referer' => 'https://google.com'],
+            ['browser' => 'Chrome', 'platform' => 'Windows', 'referer' => 'https://google.com'],
+            ['browser' => 'Firefox', 'platform' => 'Mac', 'referer' => 'https://twitter.com'],
+            ['browser' => 'Safari', 'platform' => 'iOS', 'referer' => null],
+            ['browser' => 'Chrome', 'platform' => 'Android', 'referer' => 'https://facebook.com'],
+        ]);
+        
+        $response = $this->getJson('/api/stats/test123');
+        
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'success',
+                     'data' => [
+                         'original_url',
+                         'short_code',
+                         'click_count',
+                         'browsers',
+                         'platforms',
+                         'top_referrers',
+                         'clicks_by_day',
+                         'first_click',
+                         'last_click',
+                     ]
+                 ]);
+                 
+        // Vérifier les statistiques des navigateurs
+        $response->assertJsonFragment([
+            'browser' => 'Chrome',
+            'count' => 3,
+        ]);
+    }
 
     /** @test */
     public function it_can_use_custom_code()

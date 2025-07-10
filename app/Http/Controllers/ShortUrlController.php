@@ -111,7 +111,8 @@ class ShortUrlController extends Controller
             abort(404, 'URL courte non trouvée.');
         }
 
-        $shortUrl->increment('click_count');
+        // Enregistrer le clic avec toutes les informations de suivi
+        $shortUrl->registerClick();
 
         return redirect($shortUrl->original_url);
     }
@@ -170,20 +171,75 @@ class ShortUrlController extends Controller
         return $code;
     }
 
-    // GET /api/stats/{short_code}
+    /**
+     * Affiche les statistiques d'une URL courte
+     *
+     * @param string $short_code Le code court de l'URL
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function stats($short_code)
     {
-        $shortUrl = ShortUrl::where('short_code', $short_code)->first();
+        $shortUrl = ShortUrl::withCount('clicks')
+            ->where('short_code', $short_code)
+            ->first();
 
         if (!$shortUrl) {
-            return response()->json(['message' => 'Short URL not found.'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'URL courte non trouvée.'
+            ], 404);
         }
 
-        return response()->json([
+        // Statistiques de base
+        $stats = [
             'original_url' => $shortUrl->original_url,
             'short_code' => $shortUrl->short_code,
             'click_count' => $shortUrl->click_count,
             'created_at' => $shortUrl->created_at,
+            'is_custom' => $shortUrl->is_custom,
+        ];
+
+        // Statistiques avancées (si des clics existent)
+        if ($shortUrl->clicks()->exists()) {
+            $clicks = $shortUrl->clicks()
+                ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get();
+
+            $browsers = $shortUrl->clicks()
+                ->select('browser', \DB::raw('COUNT(*) as count'))
+                ->groupBy('browser')
+                ->orderByDesc('count')
+                ->get();
+
+            $platforms = $shortUrl->clicks()
+                ->select('platform', \DB::raw('COUNT(*) as count'))
+                ->groupBy('platform')
+                ->orderByDesc('count')
+                ->get();
+
+            $referrers = $shortUrl->clicks()
+                ->select('referer', \DB::raw('COUNT(*) as count'))
+                ->whereNotNull('referer')
+                ->groupBy('referer')
+                ->orderByDesc('count')
+                ->limit(10)
+                ->get();
+
+            $stats = array_merge($stats, [
+                'clicks_by_day' => $clicks,
+                'browsers' => $browsers,
+                'platforms' => $platforms,
+                'top_referrers' => $referrers,
+                'first_click' => $shortUrl->clicks()->orderBy('created_at')->first()->created_at ?? null,
+                'last_click' => $shortUrl->clicks()->latest()->first()->created_at ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $stats
         ]);
     }
 }
