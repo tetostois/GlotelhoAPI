@@ -1,10 +1,178 @@
-# Laravel URL Shortener
+# Glotelho - Service de Raccourcissement d'URL
+
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Laravel](https://img.shields.io/badge/Laravel-FF2D20?logo=laravel&logoColor=white)](https://laravel.com/)
+[![PHP 8.2+](https://img.shields.io/badge/PHP-8.2+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Aperçu
 
 Service de raccourcissement d'URL développé avec Laravel, conçu pour évaluer les compétences en développement backend et en architecture d'application web.
 
-## Fonctionnalités principales
+## 🚀 Fonctionnalités principales
+
+### 1. Raccourcissement d'URL avancé
+- Génération de codes courts uniques
+- Personnalisation des codes courts
+- Expiration des URLs configurable
+- Limitation du nombre de clics
+- Protection par mot de passe
+
+### 2. Redirection intelligente
+- Redirection 301/302 personnalisable
+- Détection des appareils (mobile/desktop)
+- Géolocalisation
+- Suivi des référents
+
+### 3. Statistiques détaillées
+- Nombre total de clics
+- Géolocalisation des visiteurs
+- Navigateurs et systèmes d'exploitation
+- Détection des robots
+- Graphiques d'analyse
+- Export des données (CSV/JSON)
+
+### 4. Sécurité renforcée
+- Protection contre le spam
+- Limitation du taux de requêtes
+- Authentification utilisateur
+- Rôles et permissions
+- Journalisation des activités
+
+### 5. API RESTful
+- Documentation Swagger/OpenAPI
+- Authentification par jeton
+- Limitation des requêtes
+- Versioning
+- Réponses JSON standardisées
+
+## 🛠 Configuration des environnements
+
+### Variables d'environnement clés
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `APP_ENV` | Environnement de l'application | `local` |
+| `APP_DEBUG` | Mode débogage | `true` en développement |
+| `APP_URL` | URL de base de l'application | `http://localhost` |
+| `DB_*` | Configuration de la base de données | - |
+| `REDIS_HOST` | Hôte Redis | `redis` |
+| `MAIL_*` | Configuration d'envoi d'emails | - |
+| `QUEUE_CONNECTION` | Gestionnaire de file d'attente | `database` |
+
+### Fichiers d'environnement
+
+- `.env` - Configuration de développement local
+- `.env.staging` - Configuration pour l'environnement de préproduction
+- `.env.production` - Configuration pour la production
+- `.env.testing` - Configuration pour les tests automatisés
+
+## 🚀 Déploiement
+
+### Déploiement avec Docker
+
+1. Copier le fichier d'environnement de production :
+   ```bash
+   cp .env.production.example .env.production
+   ```
+
+2. Mettre à jour les variables d'environnement :
+   ```bash
+   nano .env.production
+   ```
+
+3. Lancer le script de déploiement :
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh production
+   ```
+
+### Déploiement manuel
+
+1. Configurer le serveur web (Nginx/Apache)
+2. Configurer PHP-FPM
+3. Configurer la base de données
+4. Configurer Redis
+5. Configurer les tâches planifiées (cron jobs)
+6. Configurer la surveillance et les logs
+
+### Mises à jour
+
+Pour mettre à jour l'application :
+
+```bash
+git pull origin main
+docker-compose exec app composer install --no-dev --optimize-autoloader
+docker-compose exec app php artisan migrate --force
+docker-compose exec app php artisan optimize
+docker-compose restart app
+```
+
+## 🧪 Tests
+
+### Exécuter les tests unitaires
+
+```bash
+docker-compose exec app php artisan test
+```
+
+### Tests de performance
+
+```bash
+# Installer k6 (https://k6.io/docs/getting-started/installation/)
+k6 run tests/Performance/load-test.js
+```
+
+## 📊 Monitoring
+
+L'application inclut des tableaux de bord pour le monitoring :
+
+- Horizon : http://votre-domaine/horizon
+- Telescope : http://votre-domaine/telescope
+- Logs : `storage/logs/laravel.log`
+
+## 🔒 Sécurité
+
+### Bonnes pratiques de sécurité
+
+1. Toujours utiliser HTTPS en production
+2. Mettre à jour régulièrement les dépendances
+3. Ne pas exposer les fichiers .env
+4. Utiliser des mots de passe forts
+5. Configurer correctement les permissions des fichiers
+
+### Audit de sécurité
+
+Pour effectuer un audit de sécurité :
+
+```bash
+docker-compose exec app php artisan security:check
+```
+
+## 🤝 Contribution
+
+1. Forkez le projet
+2. Créez une branche (`git checkout -b feature/AmazingFeature`)
+3. Committez vos changements (`git commit -m 'Add some AmazingFeature'`)
+4. Poussez vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
+
+## 📄 Licence
+
+Distribué sous la licence MIT. Voir `LICENSE` pour plus d'informations.
+
+## 📞 Contact
+
+Votre Nom - [@votretwitter](https://twitter.com/votretwitter) - email@example.com
+
+Lien du projet : [https://github.com/votre-utilisateur/glotelho](https://github.com/votre-utilisateur/glotelho)
+
+## 🙏 Remerciements
+
+- [Laravel](https://laravel.com/)
+- [Docker](https://www.docker.com/)
+- [k6](https://k6.io/)
+- [Tous les contributeurs](https://github.com/votre-utilisateur/glotelho/contributors)
 
 ### 1. Raccourcissement d'URL
 - Accepte une URL longue et génère un code court unique
@@ -19,7 +187,67 @@ Service de raccourcissement d'URL développé avec Laravel, conçu pour évaluer
 - Compteur de clics pour chaque URL
 - Horodatage de création de l'URL
 
-## Installation
+## Prérequis
+
+- Docker 20.10+
+- Docker Compose 2.0+
+- PHP 8.2+
+- Composer 2.0+
+- Node.js 16+ (pour les assets frontend)
+- MySQL 8.0+ ou MariaDB 10.4+
+- Redis 6.0+ (recommandé pour le cache et les files d'attente)
+
+## Installation avec Docker (Recommandé)
+
+### 1. Cloner le dépôt
+
+```bash
+git clone https://github.com/votre-utilisateur/glotelho.git
+cd glotelho
+```
+
+### 2. Configurer l'environnement
+
+Copier le fichier d'environnement d'exemple et l'adapter :
+
+```bash
+cp .env.example .env
+```
+
+### 3. Démarrer les conteneurs
+
+```bash
+docker-compose up -d --build
+```
+
+### 4. Installer les dépendances
+
+```bash
+docker-compose exec app composer install
+docker-compose exec app npm install
+docker-compose exec app npm run build
+```
+
+### 5. Configurer l'application
+
+Générer la clé d'application :
+```bash
+docker-compose exec app php artisan key:generate
+```
+
+### 6. Exécuter les migrations
+
+```bash
+docker-compose exec app php artisan migrate --seed
+```
+
+### 7. Accéder à l'application
+
+- Application : http://localhost
+- PHPMyAdmin : http://localhost:8080
+- MailHog (pour les emails) : http://localhost:8025
+
+## Installation manuelle (sans Docker)
 
 1. Cloner le dépôt :
    ```bash
