@@ -14,6 +14,13 @@ class ShortUrl extends Model
         'short_code',
         'click_count',
         'is_custom',
+        'expires_at',
+    ];
+    
+    protected $dates = [
+        'expires_at',
+        'created_at',
+        'updated_at',
     ];
 
     protected $casts = [
@@ -24,6 +31,16 @@ class ShortUrl extends Model
         'click_count' => 0,
         'is_custom' => false,
     ];
+    
+    /**
+     * Vérifie si l'URL a expiré
+     *
+     * @return bool
+     */
+    public function hasExpired(): bool
+    {
+        return $this->expires_at && $this->expires_at->isPast();
+    }
 
     /**
      * Obtenez les clics pour cette URL courte.

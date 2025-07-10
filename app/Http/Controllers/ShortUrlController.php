@@ -40,6 +40,8 @@ class ShortUrlController extends Controller
                     }
                 },
             ],
+            'expires_in' => ['nullable', 'integer', 'min:1', 'max:365'], // Nombre de jours avant expiration
+            'expires_at' => ['nullable', 'date', 'after:now'], // Date d'expiration spécifique
         ], [
             'url.required' => 'Une URL est requise',
             'url.url' => 'Le format de l\'URL est invalide',
@@ -47,6 +49,11 @@ class ShortUrlController extends Controller
             'custom_code.min' => 'Le code personnalisé doit contenir au moins :min caractères',
             'custom_code.max' => 'Le code personnalisé ne peut pas dépasser :max caractères',
             'custom_code.unique' => 'Ce code est déjà utilisé',
+            'expires_in.integer' => 'La durée d\'expiration doit être un nombre de jours.',
+            'expires_in.min' => 'La durée d\'expiration minimale est de 1 jour.',
+            'expires_in.max' => 'La durée d\'expiration maximale est de 365 jours.',
+            'expires_at.date' => 'La date d\'expiration n\'est pas valide.',
+            'expires_at.after' => 'La date d\'expiration doit être dans le futur.',
         ]);
 
         if ($validator->fails()) {
@@ -58,7 +65,12 @@ class ShortUrlController extends Controller
         }
 
         // Vérifier si l'URL existe déjà (optionnel)
-        if ($existingUrl = ShortUrl::where('original_url', $request->url)->first()) {
+        if ($existingUrl = ShortUrl::where('original_url', $request->url)
+            ->where(function($query) {
+                $query->whereNull('expires_at')
+                      ->orWhere('expires_at', '>', now());
+            })
+            ->first()) {
             return response()->json([
                 'success' => true,
                 'message' => 'URL déjà raccourcie',
@@ -66,6 +78,8 @@ class ShortUrlController extends Controller
                     'short_url' => url($existingUrl->short_code),
                     'original_url' => $existingUrl->original_url,
                     'short_code' => $existingUrl->short_code,
+                    'is_custom' => $existingUrl->is_custom,
+                    'expires_at' => $existingUrl->expires_at?->toDateTimeString(),
                 ]
             ]);
         }
@@ -73,11 +87,20 @@ class ShortUrlController extends Controller
         // Utiliser le code personnalisé s'il est fourni, sinon en générer un
         $shortCode = $request->custom_code ?? $this->generateUniqueCode();
 
+        // Calculer la date d'expiration si nécessaire
+        $expiresAt = null;
+        if ($request->expires_at) {
+            $expiresAt = now()->parse($request->expires_at);
+        } elseif ($request->expires_in) {
+            $expiresAt = now()->addDays($request->expires_in);
+        }
+
         $shortUrl = ShortUrl::create([
             'original_url' => $request->url,
             'short_code' => $shortCode,
             'click_count' => 0,
             'is_custom' => (bool)$request->custom_code,
+            'expires_at' => $expiresAt,
         ]);
 
         return response()->json([
@@ -88,6 +111,7 @@ class ShortUrlController extends Controller
                 'original_url' => $shortUrl->original_url,
                 'short_code' => $shortUrl->short_code,
                 'is_custom' => (bool)$request->custom_code,
+                'expires_at' => $shortUrl->expires_at?->toDateTimeString(),
             ]
         ], 201); // 201 Created
     }
@@ -109,6 +133,18 @@ class ShortUrlController extends Controller
             
             // Pour les requêtes web, renvoyer une vue d'erreur 404
             abort(404, 'URL courte non trouvée.');
+        }
+
+        // Vérifier si l'URL a expiré
+        if ($shortUrl->hasExpired()) {
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cette URL a expiré et n\'est plus disponible.'
+                ], 410); // 410 Gone
+            }
+            
+            abort(410, 'Cette URL a expiré et n\'est plus disponible.');
         }
 
         // Enregistrer le clic avec toutes les informations de suivi
@@ -195,8 +231,11 @@ class ShortUrlController extends Controller
             'original_url' => $shortUrl->original_url,
             'short_code' => $shortUrl->short_code,
             'click_count' => $shortUrl->click_count,
-            'created_at' => $shortUrl->created_at,
             'is_custom' => $shortUrl->is_custom,
+            'is_expired' => $shortUrl->hasExpired(),
+            'expires_at' => $shortUrl->expires_at?->toDateTimeString(),
+            'days_remaining' => $shortUrl->expires_at ? now()->diffInDays($shortUrl->expires_at, false) : null,
+            'created_at' => $shortUrl->created_at,
         ];
 
         // Statistiques avancées (si des clics existent)

@@ -62,17 +62,27 @@ POST /api/shorten
 ```json
 {
     "url": "https://exemple.com/very/long/url",
-    "custom_code": "mon-code"  // Optionnel
+    "custom_code": "mon-code",  // Optionnel
+    "expires_in": 30,           // Optionnel - Nombre de jours avant expiration (1-365)
+    "expires_at": "2025-12-31"  // Optionnel - Date d'expiration spécifique (doit être dans le futur)
 }
 ```
 
 **Réponse** :
 ```json
 {
-    "short_url": "http://localhost/abc123",
-    "original_url": "https://exemple.com/very/long/url",
-    "short_code": "abc123"
-}
+    "success": true,
+    "message": "URL raccourcie avec succès",
+    "data": {
+        "short_url": "http://localhost/abc123",
+        "original_url": "https://exemple.com/very/long/url",
+        "short_code": "abc123",
+        "is_custom": false,
+        "expires_at": "2025-08-10 00:00:00"
+    }
+}```
+
+> **Note** : Si ni `expires_in` ni `expires_at` n'est spécifié, l'URL n'expirera pas.
 ```
 
 ### 2. Rediriger vers l'URL d'origine
@@ -83,13 +93,18 @@ GET /{short_code}
 
 Redirige vers l'URL d'origine et incrémente le compteur de clics.
 
+**Réponses possibles :**
+- `302 Found` - Redirection vers l'URL d'origine
+- `404 Not Found` - Code court introuvable
+- `410 Gone` - L'URL a expiré et n'est plus disponible
+
 ### 3. Obtenir les statistiques d'une URL
 
 ```
 GET /api/stats/{short_code}
 ```
 
-**Réponse** :
+**Réponse** (simplifiée) :
 ```json
 {
     "success": true,
@@ -99,6 +114,9 @@ GET /api/stats/{short_code}
         "click_count": 5,
         "is_custom": false,
         "created_at": "2025-07-10T15:30:00.000000Z",
+        "is_expired": false,
+        "expires_at": "2025-08-10T00:00:00.000000Z",
+        "days_remaining": 30,
         "clicks_by_day": [
             {
                 "date": "2025-07-10",
