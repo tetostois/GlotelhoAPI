@@ -2,22 +2,36 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Api\ApiController;
-use OpenApi\Annotations as OA;
-
 use App\Models\ShortUrl;
+use App\Services\UrlSecurityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
-/**
- * @OA\Tag(name="URLs")
- */
-class ShortUrlController extends ApiController
+class ShortUrlController extends Controller
 {
-    // POST /api/shorten
+    /**
+     * @var UrlSecurityService
+     */
+    protected $urlSecurityService;
+
+    /**
+     * @param UrlSecurityService $urlSecurityService
+     */
+    public function __construct(UrlSecurityService $urlSecurityService)
+    {
+        $this->urlSecurityService = $urlSecurityService;
+        
+        // Appliquer le middleware de protection contre la force brute
+        $this->middleware('throttle:shorten,5,1')->only('shorten');
+        $this->middleware(PreventBruteForce::class . ':shorten,5,1')->only('shorten');
+    }
+
     /**
      * Raccourcir une URL
      *
@@ -29,45 +43,46 @@ class ShortUrlController extends ApiController
      *         required=true,
      *         @OA\JsonContent(
      *             required={"url"},
-     *             @OA\Property(property="url", type="string", format="url", example="https://exemple.com/very/long/url"),
-     *             @OA\Property(property="custom_code", type="string", minLength=3, maxLength=20, example="mon-site"),
-     *             @OA\Property(property="expires_in", type="integer", description="Nombre de jours avant expiration", minimum=1, maximum=365, example=30),
-     *             @OA\Property(property="expires_at", type="string", format="date-time", description="Date d'expiration spécifique", example="2025-12-31T23:59:59Z")
+     *             @OA\Property(property="url", type="string", format="url", example="https://example.com"),
+     *             @OA\Property(property="custom_code", type="string", maxLength=50, example="mon-lien"),
+     *             @OA\Property(property="expires_in", type="integer", minimum=1, maximum=365, example=30),
+     *             @OA\Property(property="expires_at", type="string", format="date-time", example="2023-12-31 23:59:59")
      *         )
      *     ),
      *     @OA\Response(
      *         response=201,
      *         description="URL raccourcie avec succès",
      *         @OA\JsonContent(
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="URL raccourcie avec succès"),
-     *             @OA\Property(
-     *                 property="data",
-     *                 ref="#/components/schemas/ShortUrl"
-     *             )
+     *             @OA\Property(property="original_url", type="string"),
+     *             @OA\Property(property="short_url", type="string"),
+     *             @OA\Property(property="expires_at", type="string", format="date-time", nullable=true)
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
      *         description="Erreur de validation",
-     *         @OA\JsonContent(ref="#/components/schemas/Error")
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="The given data was invalid."),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=429,
+     *         description="Trop de requêtes",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Too Many Attempts.")
+     *         )
      *     )
      * )
      */
     public function shorten(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'url' => [
-                'required',
-                'url',
-                function ($attribute, $value, $fail) {
-                    // Vérification supplémentaire pour les URLs mal formées
-                    $parsed = parse_url($value);
-                    if (!isset($parsed['scheme']) || !in_array($parsed['scheme'], ['http', 'https'])) {
-                        $fail("L'URL doit commencer par http:// ou https://");
-                    }
-                },
-            ],
+            'url' => ['required', 'url', 'max:2000', function ($attribute, $value, $fail) {
+                if (!$this->urlSecurityService->isSafeUrl($value)) {
+                    $fail('L\'URL fournie est sur une liste noire ou potentiellement dangereuse.');
+                }
+            }],
             'custom_code' => [
                 'nullable',
                 'alpha_dash',
